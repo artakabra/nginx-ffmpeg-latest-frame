@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Latest Frame</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body { margin: 0; padding: 0; font-family: sans-serif; background: #111; color: #eee; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; text-align: center; }
+    img { max-width: 100%; height: auto; border-radius: 8px; }
+    .muted { color: #aaa; font-size: 14px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Последний кадр</h1>
+    <img id="frame" src="latest.jpg?ts={{ '%s' | strftime }}" alt="latest frame">
+    <div class="muted">Обновите страницу, чтобы увидеть последний кадр</div>
+  </div>
+  <script>
+    // При загрузке страницы добавляем параметр, чтобы получить актуальный кадр
+    const img = document.getElementById('frame');
+    const u = new URL(img.src, window.location);
+    u.searchParams.set('ts', Date.now());
+    img.src = u.toString();
+  </script>
+</body>
+</html>

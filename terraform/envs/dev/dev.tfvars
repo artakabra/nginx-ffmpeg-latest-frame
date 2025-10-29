@@ -1,0 +1,6 @@
+region        = "us-east-1"
+vpc_cidr      = "10.0.0.0/24"
+az            = "us-east-1a"
+ami_id        = "ami-0fc5d935ebf8bc3bc"
+instance_type = "t3.micro"
+key_name      = "latest_frame-key"

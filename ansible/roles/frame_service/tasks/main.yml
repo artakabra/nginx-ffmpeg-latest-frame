@@ -1,0 +1,142 @@
+---
+# ---------- Docker install / health ----------
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Add Docker GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Add Docker APT repo
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    mode: "0644"
+    content: |
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+  when: ansible_os_family == "Debian"
+
+- name: apt update (after adding Docker repo)
+  ansible.builtin.apt:
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Install Docker engine + compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure docker service is running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add ubuntu user to docker group
+  ansible.builtin.user:
+    name: ubuntu
+    groups: docker
+    append: yes
+
+- name: Install python3-docker
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Wait for Docker socket to be available
+  ansible.builtin.wait_for:
+    path: /var/run/docker.sock
+    state: present
+    timeout: 60
+
+- name: Create app root directory
+  ansible.builtin.file:
+    path: "{{ app_root }}"
+    state: directory
+    mode: "0755"
+
+- name: Place index.html
+  ansible.builtin.template:
+    src: "index.html.j2"
+    dest: "{{ app_root }}/index.html"
+    mode: "0644"
+
+# ---------- Pick a free HTTP port (80 or fallback to 8080) ----------
+- name: Check if port 80 is in use
+  ansible.builtin.shell: "ss -ltn '( sport = :80 )' | tail -n +2 | wc -l"
+  register: port80_used
+  changed_when: false
+
+- name: Set http_port based on availability
+  ansible.builtin.set_fact:
+    http_port: "{{ '80' if (port80_used.stdout | int) == 0 else '8080' }}"
+
+# ---------- Network + containers ----------
+- name: Create docker network
+  community.docker.docker_network:
+    name: "{{ docker_network }}"
+    state: present
+
+- name: Pull nginx image
+  community.docker.docker_image:
+    name: "{{ nginx_image }}"
+    source: pull
+
+- name: Start nginx container
+  community.docker.docker_container:
+    name: "{{ nginx_container_name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    restart_policy: always
+    networks:
+      - name: "{{ docker_network }}"
+    volumes:
+      - "{{ app_root }}:/usr/share/nginx/html:ro"
+    published_ports:
+      - "{{ http_port }}:80"
+
+- name: Pull ffmpeg image
+  community.docker.docker_image:
+    name: "{{ ffmpeg_image }}"
+    source: pull
+
+- name: Start ffmpeg container (updates latest.jpg)
+  community.docker.docker_container:
+    name: "{{ ffmpeg_container_name }}"
+    image: "{{ ffmpeg_image }}"
+    state: started
+    restart_policy: always
+    networks:
+      - name: "{{ docker_network }}"
+    volumes:
+      - "{{ app_root }}:/frames"
+    command: >
+      -hide_banner -loglevel error
+      -re -stream_loop -1
+      -i {{ stream_url }}
+      -vf fps=1,scale=1280:-1
+      -f image2 -update 1 -y /frames/latest.jpg

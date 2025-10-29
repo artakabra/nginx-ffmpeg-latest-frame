@@ -1,0 +1,29 @@
+# SSH and private keys
+*.pem
+*.key
+*.pub
+
+# Ansible facts and cache
+*.retry
+*.log
+*.tmp
+*.bak
+
+# Python / Ansible environment
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+
+# macOS files
+.DS_Store
+
+# Terraform (if mixed in same repo)
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+
+# Local secrets or credentials
+secrets.yml
+vault_pass.txt

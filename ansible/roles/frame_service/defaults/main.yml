@@ -1,0 +1,8 @@
+---
+stream_url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+app_root: "/opt/stream-frame/www"     # shared host dir for both containers
+ffmpeg_image: "jrottenberg/ffmpeg:4.4-alpine"
+nginx_image: "nginx:alpine"
+nginx_container_name: "frame-nginx"
+ffmpeg_container_name: "frame-ffmpeg"
+docker_network: "frame-net"

@@ -1,0 +1,6 @@
+---
+- name: Deploy latest frame web service
+  hosts: frame
+  become: true
+  roles:
+    - frame_service
